@@ -43,9 +43,9 @@ services:
     ports:
       - "80:80"
     volumes:
-      - ../frontend/dist:/usr/share/nginx/html # React 打包後的檔案
-      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
-      - ../backend/uploads:/app/uploads # 圖片 / 縮圖資料夾
+      - ../frontend/dist:/usr/share/nginx/html
+      - ./nginx:/etc/nginx/conf.d # 👈 改成整個資料夾
+      - ./uploads:/app/uploads
     depends_on:
       - backend
       - frontend
