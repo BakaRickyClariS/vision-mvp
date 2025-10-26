@@ -1,0 +1,76 @@
+name: Deploy Fullstack App to GCP VM
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # =====================
+      # 1️⃣ 建立 GCP 金鑰檔案
+      # =====================
+      - name: Create service account key file
+        run: echo "$GCP_SERVICE_ACCOUNT" > ./service-account.json
+
+      # =====================
+      # 2️⃣ 前端建置（React/Vite/Tailwind）
+      # =====================
+      - name: Build frontend
+        working-directory: ./frontend
+        run: |
+          npm ci
+          npm run build
+
+      # =====================
+      # 3️⃣ 寫入後端環境變數
+      # =====================
+      - name: Create backend .env file
+        working-directory: ./backend
+        run: |
+          echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> .env
+          echo "PORT=${{ secrets.PORT }}" >> .env
+          echo "GOOGLE_APPLICATION_CREDENTIALS=/app/service-account.json" >> .env
+
+      # =====================
+      # 4️⃣ 複製檔案到 GCP VM
+      # =====================
+      - name: Copy files to GCP VM
+        env:
+          SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          echo "$SSH_KEY" > gcp_key
+          chmod 600 gcp_key
+          scp -i gcp_key -r backend frontend/dist user@${{ secrets.GCP_VM_IP }}:/app
+
+      # =====================
+      # 5️⃣ SSH 登入並重啟 Docker 後端 & 靜態前端
+      # =====================
+      - name: SSH into VM and deploy
+        env:
+          SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+        run: |
+          echo "$SSH_KEY" > gcp_key
+          chmod 600 gcp_key
+          ssh -i gcp_key user@${{ secrets.GCP_VM_IP }} << 'EOF'
+            # 後端部署
+            cd /app/backend
+            echo "$GCP_SERVICE_ACCOUNT" > service-account.json
+            docker-compose down
+            docker-compose up -d --build
+
+            # 前端靜態檔案放置 (假設 /var/www/frontend 是 nginx root)
+            sudo mkdir -p /var/www/frontend
+            sudo cp -r /app/dist/* /var/www/frontend/
+
+            # 重啟 Nginx（如果有）
+            if command -v nginx >/dev/null 2>&1; then
+              sudo systemctl restart nginx
+            fi
+          EOF
