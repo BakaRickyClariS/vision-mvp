@@ -1,0 +1,30 @@
+services:
+  backend:
+    build:
+      context: . # 指定 Dockerfile 所在的資料夾
+      dockerfile: Dockerfile # Dockerfile 名稱
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./uploads:/app/uploads
+      - ./service-account.json:/app/service-account.json
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@db:5432/visiondb
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/service-account.json
+    depends_on:
+      - db
+
+  db:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: visiondb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
