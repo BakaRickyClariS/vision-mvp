@@ -79,7 +79,9 @@ export default function Upload() {
   const renderInvoice = (data: any) => {
     const text = data?.textAnnotations?.[0]?.description || "";
     if (!text) return <p>未偵測到文字內容。</p>;
-    const lines: string[] = text.split("\n").filter((l) => l.trim() !== "");
+    const lines: string[] = text
+      .split("\n")
+      .filter((l: string) => l.trim() !== "");
 
     const date = lines.find((l: string) => /\d{4}[./-]\d{2}[./-]\d{2}/.test(l));
     const total = lines.find((l: string) => /[NT\$]\s?\d+/.test(l));
